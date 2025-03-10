@@ -22,10 +22,8 @@ pub fn determine_chunk_size<P: AsRef<Path>>(path: P) -> io::Result<usize> {
 
     let file_size = path.metadata()?.len() as usize;
 
-    if file_size > 10 * GB {
-        Ok(32 * MB)
-    } else if file_size > GB {
-        Ok(16 * MB)
+    if file_size > GB {
+        Ok(128 * MB)
     } else if file_size > 100 * MB {
         Ok(4 * MB)
     } else if file_size > 10 * MB {

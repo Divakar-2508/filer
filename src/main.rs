@@ -11,12 +11,13 @@ use std::{
     net::{SocketAddr, TcpListener, TcpStream},
     path::PathBuf,
     str::FromStr,
+    time::Instant,
 };
 
 pub fn transfer_data<W: Write, R: Read>(
     source: &mut R,
     dest: &mut W,
-    header: Header,
+    header: &Header,
 ) -> io::Result<()> {
     let mut buffer = vec![0u8; header.chunk_size()];
     let mut bytes_read = 0;
@@ -26,6 +27,7 @@ pub fn transfer_data<W: Write, R: Read>(
         source.read_exact(&mut buffer[..bytes_to_read])?;
         dest.write_all(&buffer[..bytes_to_read])?;
         bytes_read += header.chunk_size();
+        eprintln!("written {}", bytes_to_read);
     }
 
     Ok(())
@@ -49,7 +51,7 @@ fn send() -> Result<(), Box<dyn Error>> {
 
     let mut socket = TcpStream::connect(buffer.trim())?;
     header::write_header(&mut socket, &header)?;
-    transfer_data(&mut reader, &mut socket, header)?;
+    transfer_data(&mut reader, &mut socket, &header)?;
 
     Ok(())
 }
@@ -66,6 +68,7 @@ fn recv() -> Result<(), Box<dyn Error>> {
     println!("recving from {}", addr);
 
     let header = header::read_header(&mut socket)?;
+    println!("Header: {:?}", header);
 
     let mut file = OpenOptions::new()
         .create(true)
@@ -73,7 +76,16 @@ fn recv() -> Result<(), Box<dyn Error>> {
         .truncate(true)
         .open(header.file_name())?;
 
-    transfer_data(&mut socket, &mut file, header)?;
+    let ins = Instant::now();
+    transfer_data(&mut socket, &mut file, &header)?;
+
+    let dur = ins.elapsed();
+    println!(
+        "Finished {} : {} in {:?}",
+        header.file_name(),
+        header.file_size(),
+        dur
+    );
 
     Ok(())
 }
